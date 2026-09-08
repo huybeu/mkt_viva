@@ -18,6 +18,13 @@ services:
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/content-team}
     ports:
       - "3000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mkt-viva.rule=Host(`vivatravel.group`) || Host(`www.vivatravel.group`)"
+      - "traefik.http.routers.mkt-viva.entrypoints=websecure"
+      - "traefik.http.routers.mkt-viva.tls=true"
+      - "traefik.http.routers.mkt-viva.tls.certresolver=letsencrypt"
+      - "traefik.http.services.mkt-viva.loadbalancer.server.port=3000"
   db:
     image: postgres:16-alpine
     restart: unless-stopped
