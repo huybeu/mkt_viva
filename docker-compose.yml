@@ -48,9 +48,14 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-this-minio-password}
     volumes:
       - minio_data:/data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mkt-viva-storage.rule=Host(`vivatravel.group`) && PathPrefix(`/content-team`)"
+      - "traefik.http.routers.mkt-viva-storage.entrypoints=websecure"
+      - "traefik.http.routers.mkt-viva-storage.tls=true"
+      - "traefik.http.routers.mkt-viva-storage.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.mkt-viva-storage.priority=100"
+      - "traefik.http.services.mkt-viva-storage.loadbalancer.server.port=9000"
   minio-init:
     image: minio/mc:latest
     depends_on:
