@@ -1,7 +1,10 @@
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
+import { currentUser } from "@/lib/auth";
 
 export async function GET() {
+  const user = await currentUser();
+  if (!user) return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
   const appId = process.env.FACEBOOK_APP_ID, redirectUri = process.env.FACEBOOK_REDIRECT_URI;
   if (!appId || !redirectUri) return NextResponse.redirect(new URL("/facebook/oauth-complete?error=facebook_not_configured", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
   const state = randomBytes(24).toString("base64url");

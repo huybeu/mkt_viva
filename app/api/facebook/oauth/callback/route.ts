@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { facebook } from "@/services/facebook.service";
+import { currentUser } from "@/lib/auth";
 
 const appUrl = () => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 export async function GET(request: NextRequest) {
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
       new URL("/facebook/oauth-complete?error=invalid_oauth_state", appUrl()),
     );
   try {
+    const user = await currentUser();
+    if (!user) throw new Error("Phiên đăng nhập ứng dụng đã hết hạn");
     const params = new URLSearchParams({
       client_id: process.env.FACEBOOK_APP_ID || "",
       client_secret: process.env.FACEBOOK_APP_SECRET || "",
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
       throw new Error(
         token.error?.message || "Không lấy được Facebook access token",
       );
-    const pages = await facebook.connectFromUserToken(token.access_token);
+    const pages = await facebook.connectFromUserToken(token.access_token, user.id);
     const response = NextResponse.redirect(
       new URL(`/facebook/oauth-complete?connected=${pages.length}`, appUrl()),
     );
