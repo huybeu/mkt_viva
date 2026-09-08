@@ -1,0 +1,3 @@
+import { handleError, ok } from "@/lib/api"; import { images } from "@/services/image.service";
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) { try { return ok(await images.list((await params).id)); } catch (e) { return handleError(e); } }
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) { try { const form = await request.formData(); const files = form.getAll("files[]").filter((v): v is File => v instanceof File); return ok(await images.upload((await params).id, files), 201); } catch (e) { return handleError(e); } }

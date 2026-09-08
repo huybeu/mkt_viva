@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PostStatus {
+  DRAFT
+  IN_PROGRESS
+  READY_TO_PUBLISH
+  PUBLISHED
+  PAUSED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  username  String?   @unique
+  passwordHash String?
+  role      String    @default("MEMBER")
+  avatarUrl String?
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions  Session[]
+}
+
+model Session {
+  id String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model Post {
+  id               String      @id @default(cuid())
+  title            String
+  topicType        String?
+  content          String      @default("")
+  facebookFormat   String      @default("TEXT")
+  scheduledAt      DateTime?
+  status           PostStatus  @default(DRAFT)
+  assigneeId       String?
+  assignee         User?       @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  externalImageUrl String?
+  publishedUrl     String?
+  notes            String?
+  images           PostImage[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([assigneeId])
+}
+
+model PostImage {
+  id         String   @id @default(cuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  storageKey String   @unique
+  fileName   String
+  mimeType   String
+  fileSize   Int
+  width      Int?
+  height     Int?
+  url        String
+  position   Int      @default(0)
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([postId, position])
+}
+
+model FacebookPage {
+  id                   String   @id @default(cuid())
+  pageId               String   @unique
+  name                 String
+  accessTokenEncrypted String
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}

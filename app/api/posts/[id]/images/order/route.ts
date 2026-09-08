@@ -1,0 +1,2 @@
+import { handleError, ok } from "@/lib/api"; import { orderSchema } from "@/lib/validation"; import { images } from "@/services/image.service";
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) { try { const { imageIds } = orderSchema.parse(await request.json()); return ok(await images.reorder((await params).id, imageIds)); } catch (e) { return handleError(e); } }
