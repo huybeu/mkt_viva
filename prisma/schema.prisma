@@ -82,7 +82,7 @@ model PostImage {
 
 model FacebookPage {
   id                   String   @id @default(cuid())
-  pageId               String   @unique
+  pageId               String
   name                 String
   accessTokenEncrypted String
   isActive             Boolean  @default(true)
