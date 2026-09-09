@@ -131,7 +131,7 @@ export function PostDetail({
     if (!open) return;
     const paste = (e: ClipboardEvent) => {
       const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
-        f.type.startsWith("image/"),
+        f.type.startsWith("image/") || f.type.startsWith("video/"),
       );
       if (files.length) {
         e.preventDefault();
@@ -294,9 +294,9 @@ export function PostDetail({
               <div className="my-7 border-t border-line" />
               <div className="mb-3 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold">Hình ảnh</h3>
+                  <h3 className="text-sm font-bold">Hình ảnh & video</h3>
                   <p className="mt-0.5 text-xs text-muted">
-                    Tối đa 10 ảnh · 10MB/ảnh
+                    Tối đa 10 tệp · ảnh 10MB · video 200MB
                   </p>
                 </div>
                 <span className="text-xs text-muted">
@@ -318,7 +318,7 @@ export function PostDetail({
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
                   multiple
                   hidden
                   onChange={(e) =>
@@ -328,16 +328,16 @@ export function PostDetail({
                 {uploading ? (
                   <div>
                     <Loader2 className="mx-auto mb-2 size-6 animate-spin text-brand" />
-                    <p className="text-xs font-semibold">Đang tải ảnh lên...</p>
+                    <p className="text-xs font-semibold">Đang tải media lên...</p>
                   </div>
                 ) : (
                   <div>
                     <UploadCloud className="mx-auto mb-2 size-6 text-muted group-hover:text-brand" />
                     <p className="text-xs font-semibold">
-                      Kéo thả, chọn hoặc dán ảnh
+                      Kéo thả, chọn hoặc dán ảnh/video
                     </p>
                     <p className="mt-1 text-[11px] text-muted">
-                      JPEG, PNG, WEBP, GIF
+                      JPEG, PNG, WEBP, GIF, MP4, MOV, WEBM
                     </p>
                     {offline && (
                       <p className="mt-1 text-[11px] text-amber-700">
@@ -357,14 +357,10 @@ export function PostDetail({
                     className="group overflow-hidden rounded-xl border border-line bg-white"
                   >
                     <div className="relative aspect-square bg-canvas">
-                      <img
-                        src={image.url}
-                        alt={image.fileName}
-                        className="size-full object-cover"
-                      />
+                      {image.mimeType.startsWith("video/") ? <video src={image.url} className="size-full object-cover" muted playsInline preload="metadata" /> : <img src={image.url} alt={image.fileName} className="size-full object-cover" />}
                       {image.isPrimary && (
                         <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[9px] font-bold text-brand shadow">
-                          <Star className="size-2.5 fill-current" /> Ảnh chính
+                          <Star className="size-2.5 fill-current" /> Media chính
                         </span>
                       )}
                       <div className="absolute inset-x-2 bottom-2 flex justify-end gap-1 opacity-0 transition group-hover:opacity-100">
@@ -397,7 +393,7 @@ export function PostDetail({
                       </p>
                       {!image.isPrimary && (
                         <button
-                          title="Chọn làm ảnh chính"
+                          title="Chọn làm media chính"
                           onClick={() => void imageAction(image, "primary")}
                         >
                           <Star className="size-3 text-muted" />
@@ -478,13 +474,9 @@ export function PostDetail({
             aria-describedby={undefined}
             className="fixed inset-4 z-[70] grid place-items-center outline-none"
           >
-            <Dialog.Title className="sr-only">Xem ảnh</Dialog.Title>
+            <Dialog.Title className="sr-only">Xem media</Dialog.Title>
             {preview && (
-              <img
-                src={preview.url}
-                alt={preview.fileName}
-                className="max-h-full max-w-full rounded-xl object-contain"
-              />
+              preview.mimeType.startsWith("video/") ? <video src={preview.url} controls autoPlay className="max-h-full max-w-full rounded-xl object-contain" /> : <img src={preview.url} alt={preview.fileName} className="max-h-full max-w-full rounded-xl object-contain" />
             )}
             <Dialog.Close className="fixed right-6 top-6 rounded-full bg-white/90 p-2">
               <X className="size-5" />

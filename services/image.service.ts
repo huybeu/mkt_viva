@@ -6,16 +6,22 @@ import { ApiError } from "@/lib/api";
 import { safeFileName } from "@/lib/utils";
 import { storage } from "./s3-storage.service";
 
-const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-export const maxBytes = () => (Number(process.env.MAX_IMAGE_SIZE_MB) || 10) * 1024 * 1024;
+const imageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const videoTypes = new Set(["video/mp4", "video/quicktime", "video/webm"]);
+const allowed = new Set([...imageTypes, ...videoTypes]);
+export const maxBytes = (mimeType: string) =>
+  (mimeType.startsWith("video/")
+    ? Number(process.env.MAX_VIDEO_SIZE_MB) || 200
+    : Number(process.env.MAX_IMAGE_SIZE_MB) || 10) * 1024 * 1024;
 export const maxImages = () => Number(process.env.MAX_IMAGES_PER_POST) || 10;
 
 export function validateMetadata(mimeType: string, fileSize: number) {
-  if (!allowed.has(mimeType)) throw new ApiError(415, "INVALID_FILE_TYPE", "Chỉ hỗ trợ JPEG, PNG, WEBP và GIF");
-  if (fileSize > maxBytes()) throw new ApiError(413, "FILE_TOO_LARGE", `Mỗi ảnh tối đa ${maxBytes() / 1024 / 1024}MB`);
+  if (!allowed.has(mimeType)) throw new ApiError(415, "INVALID_FILE_TYPE", "Chỉ hỗ trợ JPEG, PNG, WEBP, GIF, MP4, MOV và WEBM");
+  const limit = maxBytes(mimeType);
+  if (fileSize > limit) throw new ApiError(413, "FILE_TOO_LARGE", `Tệp ${mimeType.startsWith("video/") ? "video" : "ảnh"} tối đa ${limit / 1024 / 1024}MB`);
 }
 export function storageKey(postId: string, fileName: string, mime: string) {
-  const ext: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+  const ext: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" };
   return `posts/${postId}/${safeFileName(fileName)}-${randomUUID()}.${ext[mime]}`;
 }
 export class ImageService {
@@ -24,18 +30,18 @@ export class ImageService {
     const post = await db.post.findUnique({ where: { id: postId }, select: { id: true } });
     if (!post) throw new ApiError(404, "POST_NOT_FOUND", "Không tìm thấy bài đăng");
     const count = await db.postImage.count({ where: { postId } });
-    if (!files.length) throw new ApiError(400, "FILES_REQUIRED", "Vui lòng chọn ít nhất một ảnh");
-    if (count + files.length > maxImages()) throw new ApiError(400, "TOO_MANY_IMAGES", `Mỗi bài tối đa ${maxImages()} ảnh`);
+    if (!files.length) throw new ApiError(400, "FILES_REQUIRED", "Vui lòng chọn ít nhất một tệp media");
+    if (count + files.length > maxImages()) throw new ApiError(400, "TOO_MANY_IMAGES", `Mỗi bài tối đa ${maxImages()} tệp media`);
     const created = [];
     for (let index = 0; index < files.length; index++) {
       const file = files[index]; validateMetadata(file.type, file.size);
       const buffer = Buffer.from(await file.arrayBuffer()); const detected = await fileTypeFromBuffer(buffer);
-      if (!detected || !allowed.has(detected.mime) || detected.mime !== file.type) throw new ApiError(415, "INVALID_FILE_TYPE", `Tệp ${file.name} không phải ảnh hợp lệ`);
+      if (!detected || !allowed.has(detected.mime) || detected.mime !== file.type) throw new ApiError(415, "INVALID_FILE_TYPE", `Tệp ${file.name} không phải ảnh hoặc video hợp lệ`);
       const key = storageKey(postId, file.name, detected.mime); let uploaded = false;
       try {
         const result = await storage.upload({ key, body: buffer, contentType: detected.mime }); uploaded = true;
-        const meta = await sharp(buffer, { animated: true }).metadata();
-        const image = await db.postImage.create({ data: { postId, storageKey: key, fileName: file.name.slice(0, 255), mimeType: detected.mime, fileSize: file.size, width: meta.width, height: meta.height, url: result.url, position: count + index, isPrimary: count === 0 && index === 0 } });
+        const dimensions = imageTypes.has(detected.mime) ? await sharp(buffer, { animated: true }).metadata() : { width: undefined, height: undefined };
+        const image = await db.postImage.create({ data: { postId, storageKey: key, fileName: file.name.slice(0, 255), mimeType: detected.mime, fileSize: file.size, width: dimensions.width, height: dimensions.height, url: result.url, position: count + index, isPrimary: count === 0 && index === 0 } });
         console.info("Image uploaded", { postId, imageId: image.id }); created.push(image);
       } catch (error) { if (uploaded) await storage.delete(key).catch(() => undefined); console.error("Image upload failed", { postId, fileName: file.name, error }); throw error; }
     }
